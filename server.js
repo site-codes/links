@@ -1,7 +1,6 @@
 const puppeteer = require('puppeteer');
 
 (async () => {
-    // Inicia o navegador no modo headless
     const browser = await puppeteer.launch({
         headless: "new", // Nova implementação do modo headless
         args: [
