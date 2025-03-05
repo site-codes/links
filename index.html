@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Captura de Links .m3u8</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #progress {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    #result {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      min-height: 100px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    input {
+      margin-right: 10px;
+      padding: 5px;
+      font-size: 16px;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+    #fullUrl {
+      margin-top: 10px;
+      font-size: 16px;
+      color: blue;
+    }
+    .episode-fields {
+      display: block; /* Exibe os campos de episódios por padrão */
+    }
+    .episode-fields.hidden {
+      display: none; /* Oculta os campos de episódios quando necessário */
+    }
+  </style>
+</head>
+<body>
+  <h1>Captura de Links .m3u8</h1>
+  <label for="nameAnime">Caminho completo do Anime:</label>
+  <input type="text" id="nameAnime" placeholder="Exemplo: https://betteranime.net/anime/legendado/watashi-no-shiawase-na-kekkon-2nd-season" />
+  <br><br>
+
+  <!-- Campos de episódios -->
+  <div id="episodeFields" class="episode-fields">
+    <label for="specificEpisode">Buscar apenas o episódio específico (opcional):</label>
+    <input type="text" id="specificEpisode" placeholder="Exemplo: 21" />
+    <br><br>
+    <label for="startEpisode">Iniciar a partir do episódio (ignorado se o campo acima estiver preenchido):</label>
+    <input type="number" id="startEpisode" value="01" min="1" />
+    <label for="endEpisode">Parar no episódio (opcional):</label>
+    <input type="number" id="endEpisode" placeholder="Deixe em branco para continuar até o fim" />
+    <br><br>
+  </div>
+
+  <button id="startButton">Iniciar Processo</button>
+  <button id="downloadButton" disabled>Baixar Arquivos .m3u8</button>
+  <div id="progress">Aguardando início...</div>
+  <div id="fullUrl">URL completa: </div>
+  <div id="result">Resultados aparecerão aqui...</div>
+  <div id="error" class="error"></div>
+
+  <script>
+    // Função para atualizar dinamicamente a URL completa
+    function updateFullUrl() {
+      const nameAnimeInput = document.getElementById('nameAnime');
+      const specificEpisodeInput = document.getElementById('specificEpisode');
+      const fullUrlDiv = document.getElementById('fullUrl');
+
+      let nameAnime = nameAnimeInput.value.trim();
+      let specificEpisode = '';
+
+      // Verifica se a URL contém "/episodio-"
+      const episodeMatch = nameAnime.match(/\/episodio-(\d+)/); // Captura apenas o número após "/episodio-"
+      if (episodeMatch) {
+        specificEpisode = episodeMatch[1]; // Extrai apenas o número (ex.: "21")
+        nameAnime = nameAnime.replace(/\/episodio-\d+/, ''); // Remove o trecho "/episodio-XX" da URL
+        specificEpisodeInput.value = specificEpisode; // Preenche o campo specificEpisode com o número
+        nameAnimeInput.value = nameAnime; // Atualiza o campo nameAnime com a URL base
+      }
+
+      // Atualiza a URL completa com base no valor de specificEpisode
+      specificEpisode = specificEpisodeInput.value.trim();
+      if (specificEpisode) {
+        fullUrlDiv.textContent = `URL completa: ${nameAnime}/episodio-${specificEpisode}`;
+      } else {
+        fullUrlDiv.textContent = `URL completa: ${nameAnime}`;
+      }
+
+      // Verifica se a URL contém "/filme/" e oculta ou exibe os campos de episódios
+      const episodeFieldsDiv = document.getElementById('episodeFields');
+      if (nameAnime.includes('/filme/')) {
+        episodeFieldsDiv.classList.add('hidden'); // Oculta os campos de episódios
+      } else {
+        episodeFieldsDiv.classList.remove('hidden'); // Exibe os campos de episódios
+      }
+
+      // Oculta ou exibe os campos de intervalo de episódios
+      toggleRangeFields(specificEpisode);
+    }
+
+    // Função para ocultar/exibir os campos de intervalo de episódios
+    function toggleRangeFields(specificEpisode) {
+      const rangeFieldsDiv = document.getElementById('rangeFields');
+      if (specificEpisode) {
+        rangeFieldsDiv.classList.add('hidden'); // Oculta os campos de intervalo
+      } else {
+        rangeFieldsDiv.classList.remove('hidden'); // Exibe os campos de intervalo
+      }
+    }
+
+    // Função para garantir que os valores tenham no mínimo dois dígitos (apenas para números de 0 a 9)
+    function formatTwoDigits(inputElement) {
+      let value = inputElement.value.trim();
+      if (value && !isNaN(value)) {
+        // Remove zeros à esquerda desnecessários apenas se o número for maior que 9
+        const numericValue = parseInt(value, 10);
+        if (numericValue > 9) {
+          inputElement.value = String(numericValue); // Mantém o valor sem zeros à esquerda
+        } else if (numericValue >= 0 && numericValue <= 9) {
+          inputElement.value = value.padStart(2, '0'); // Adiciona zero à esquerda apenas para números de 0 a 9
+        }
+      }
+    }
+
+    // Função para extrair o nome do anime da URL
+    function extractAnimeName(url) {
+      const match = url.match(/\/(legendado|dublado)\/([^/]+)/);
+      if (match) {
+        let animeName = match[2]; // Captura o nome após /legendado/ ou /dublado/
+        animeName = animeName.replace(/-/g, ' '); // Substitui hífens por espaços
+        animeName = animeName
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' '); // Formata com a primeira letra maiúscula
+        return animeName;
+      }
+      return 'Anime Desconhecido';
+    }
+
+    // Função para baixar os arquivos .m3u8 e organizá-los em pastas
+    async function downloadM3U8Files() {
+      const resultDiv = document.getElementById('result');
+      const jsonData = JSON.parse(resultDiv.textContent);
+
+      const nameAnimeInput = document.getElementById('nameAnime');
+      const animeName = extractAnimeName(nameAnimeInput.value.trim());
+
+      // Cria a pasta principal do anime
+      const mainFolder = animeName;
+      console.log(`Criando pasta principal: ${mainFolder}`);
+
+      for (const [episode, qualities] of Object.entries(jsonData)) {
+        // Cria a subpasta do episódio
+        const episodeFolder = `${mainFolder}/${episode}`;
+        console.log(`Criando subpasta: ${episodeFolder}`);
+
+        for (const [quality, url] of Object.entries(qualities)) {
+          // Baixa o arquivo .m3u8
+          console.log(`Baixando ${quality} para ${episode}: ${url}`);
+          const response = await fetch(url);
+          const blob = await response.blob();
+
+          // Cria um link temporário para download
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${episodeFolder}/${quality}.m3u8`;
+          link.click();
+        }
+      }
+    }
+
+    // Adiciona listeners para os campos de entrada
+    document.getElementById('nameAnime').addEventListener('input', updateFullUrl);
+    document.getElementById('specificEpisode').addEventListener('input', () => {
+      formatTwoDigits(document.getElementById('specificEpisode'));
+      updateFullUrl();
+    });
+    document.getElementById('startEpisode').addEventListener('input', () => {
+      formatTwoDigits(document.getElementById('startEpisode'));
+    });
+    document.getElementById('endEpisode').addEventListener('input', () => {
+      formatTwoDigits(document.getElementById('endEpisode'));
+    });
+
+    document.getElementById('startButton').addEventListener('click', async () => {
+      const progressDiv = document.getElementById('progress');
+      const resultDiv = document.getElementById('result');
+      const errorDiv = document.getElementById('error');
+      const nameAnimeInput = document.getElementById('nameAnime');
+      const specificEpisodeInput = document.getElementById('specificEpisode');
+      const startEpisodeInput = document.getElementById('startEpisode');
+      const endEpisodeInput = document.getElementById('endEpisode');
+
+      const nameAnime = nameAnimeInput.value.trim();
+      const specificEpisode = specificEpisodeInput.value.trim();
+      const startEpisode = parseInt(startEpisodeInput.value) || 1; // Obtém o valor do input de início
+      const endEpisode = endEpisodeInput.value.trim() ? parseInt(endEpisodeInput.value) : null; // Obtém o valor do input de fim (opcional)
+
+      // Limpa mensagens de erro anteriores
+      errorDiv.textContent = '';
+
+      // Validação do nome do anime
+      if (!nameAnime) {
+        errorDiv.textContent = 'Erro: O caminho do anime é obrigatório.';
+        return;
+      }
+
+      if (specificEpisode && specificEpisode.trim() === '') {
+        alert('Por favor, insira um valor válido para o episódio específico.');
+        return;
+      }
+
+      if (!specificEpisode && (isNaN(startEpisode) || startEpisode < 1)) {
+        alert('Por favor, insira um número válido para o episódio inicial.');
+        return;
+      }
+
+      if (!specificEpisode && endEpisode !== null && (isNaN(endEpisode) || endEpisode < startEpisode)) {
+        alert('Por favor, insira um número válido para o episódio final (maior ou igual ao inicial).');
+        return;
+      }
+
+      progressDiv.textContent = 'Iniciando...';
+      resultDiv.textContent = '';
+
+      // Abre uma conexão SSE com o servidor, passando os parâmetros
+      const eventSource = new EventSource(`/start-process?nameAnime=${encodeURIComponent(nameAnime)}${specificEpisode ? `&specificEpisode=${encodeURIComponent(specificEpisode)}` : `&startEpisode=${startEpisode}${endEpisode ? `&endEpisode=${endEpisode}` : ''}`}`);
+
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.message) {
+          // Atualiza o progresso
+          progressDiv.textContent = data.message;
+        }
+
+        if (data.data) {
+          // Atualiza o JSON exibido na interface
+          resultDiv.textContent = JSON.stringify(data.data, null, 2);
+          document.getElementById('downloadButton').disabled = false; // Habilita o botão de download
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('Erro na conexão SSE:', error);
+        progressDiv.textContent = 'Erro ao comunicar com o servidor.';
+        eventSource.close();
+      };
+    });
+
+    // Adiciona listener para o botão de download
+    document.getElementById('downloadButton').addEventListener('click', () => {
+      downloadM3U8Files();
+    });
+  </script>
+</body>
+</html>
