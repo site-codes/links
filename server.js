@@ -3,8 +3,13 @@ const puppeteer = require('puppeteer');
 (async () => {
     // Inicia o navegador no modo headless
     const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Argumentos necessários para ambientes como Render
+        headless: "new", // Nova implementação do modo headless
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--single-process'
+        ]
     });
     const page = await browser.newPage();
 
