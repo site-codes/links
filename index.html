@@ -238,7 +238,7 @@
       resultDiv.textContent = '';
 
       // Abre uma conexão SSE com o servidor, passando os parâmetros
-      const eventSource = new EventSource(`/start-process?nameAnime=${encodeURIComponent(nameAnime)}${specificEpisode ? `&specificEpisode=${encodeURIComponent(specificEpisode)}` : `&startEpisode=${startEpisode}${endEpisode ? `&endEpisode=${endEpisode}` : ''}`}`);
+      const eventSource = new EventSource(`https://links-tau-eight.vercel.app/start-process?nameAnime=${encodeURIComponent(nameAnime)}${specificEpisode ? `&specificEpisode=${encodeURIComponent(specificEpisode)}` : `&startEpisode=${startEpisode}${endEpisode ? `&endEpisode=${endEpisode}` : ''}`}`);
 
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
